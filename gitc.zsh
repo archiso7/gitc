@@ -90,6 +90,11 @@ gitc() {
     return 1
   fi
   
+  # Ensure base clone directory exists
+  if [[ ! -d "$GITC_CLONE_DIR" ]]; then
+    mkdir -p "$GITC_CLONE_DIR"
+  fi
+  
   local repo="$1"
   local git_url="$repo"
   local target_path=""
