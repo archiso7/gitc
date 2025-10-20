@@ -26,11 +26,19 @@ GITC_DEFAULT_HOST="github.com"
 # ============================================================================
 
 # Generic function to create a tmux session and run a command
+# Falls back to running command directly if tmux is not available
 _tmux_session_with_command() {
   local base_command="$1"
   local action="$2"
   shift 2
   local args="$@"
+  
+  # Check if tmux is available
+  if ! command -v tmux &> /dev/null; then
+    # Run command directly without tmux
+    eval "$base_command $action $args"
+    return $?
+  fi
   
   # Determine session name
   if [[ "$action" == "clone" ]]; then
@@ -137,10 +145,16 @@ gitc() {
   # Get repo name for session
   local repo_name="${target_path##*/}"
   
-  # Create and attach to tmux session, running git clone with target directory
-  tmux new-session -s "$repo_name" -d
-  tmux send-keys -t "$repo_name" "git clone $git_url $target_dir $@ && cd $target_dir" C-m
-  tmux attach-session -t "$repo_name"
+  # Check if tmux is available
+  if command -v tmux &> /dev/null; then
+    # Create and attach to tmux session, running git clone with target directory
+    tmux new-session -s "$repo_name" -d
+    tmux send-keys -t "$repo_name" "git clone $git_url $target_dir $@ && cd $target_dir" C-m
+    tmux attach-session -t "$repo_name"
+  else
+    # Run git clone directly without tmux
+    git clone "$git_url" "$target_dir" "$@" && cd "$target_dir"
+  fi
 }
 
 gitc-refresh-cache() {

@@ -5,7 +5,7 @@ A smart git clone wrapper that creates tmux sessions and organizes repositories 
 ## Features
 
 - 🚀 **Smart cloning**: Automatically organizes repos into `~/src/host/owner/repo` structure
-- 🪟 **Tmux integration**: Creates a tmux session and cd's into the cloned directory
+- 🪟 **Tmux integration** (optional): Creates a tmux session and cd's into the cloned directory if tmux is available
 - 🎯 **GitHub shortcuts**: Just type `gitc my-repo` to clone your own repos
 - 🌐 **Multi-host support**: Works with GitHub, GitLab, Bitbucket, or any git hosting service
 - ⚡ **Auto-completion**: Tab completion for your GitHub repos and other users' repos
@@ -110,11 +110,11 @@ Cache is automatically refreshed every hour.
 
 ### Required
 - `zsh`
-- `tmux`
 - `git`
 - `gh` (GitHub CLI) - for auto-completion and shortcuts
 
 ### Recommended
+- `tmux` - For automatic session creation and management (gracefully degrades without it)
 - [fzf-tab](https://github.com/Aloxaf/fzf-tab) - For enhanced fuzzy-search completion with preview windows
 
 ## Utilities for Other Tools
