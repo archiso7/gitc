@@ -68,6 +68,8 @@ gitc <TAB>
 gitc otheruser/<TAB>
 ```
 
+**Tip**: For an even better completion experience with fuzzy search and preview, install [fzf-tab](https://github.com/Aloxaf/fzf-tab)!
+
 ### Directory Structure
 
 Repositories are organized by host and owner:
@@ -106,10 +108,14 @@ Cache is automatically refreshed every hour.
 
 ## Requirements
 
+### Required
 - `zsh`
 - `tmux`
 - `git`
 - `gh` (GitHub CLI) - for auto-completion and shortcuts
+
+### Recommended
+- [fzf-tab](https://github.com/Aloxaf/fzf-tab) - For enhanced fuzzy-search completion with preview windows
 
 ## Utilities for Other Tools
 
