@@ -109,6 +109,26 @@ _refresh_github_cache() {
   fi
 }
 
+# Search GitHub repos by query string (for large orgs with many repos)
+# This is much faster than fetching all repos when there are 10k+ repos
+_search_github_repos() {
+  local org="$1"
+  local query="$2"
+  local limit="${3:-50}"
+  
+  if [[ -z "$org" ]]; then
+    return 1
+  fi
+  
+  # If query is too short, don't search to avoid too many results
+  if [[ ${#query} -lt 2 ]]; then
+    return 1
+  fi
+  
+  # Search for repos in the org matching the query
+  gh search repos "$query" --owner "$org" --limit "$limit" --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null
+}
+
 # ============================================================================
 # gitc command - tmux sessions with git clone
 # ============================================================================
