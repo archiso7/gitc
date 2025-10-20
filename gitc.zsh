@@ -126,7 +126,8 @@ _search_github_repos() {
   fi
   
   # Search for repos in the org matching the query
-  gh search repos "$query" --owner "$org" --limit "$limit" --json nameWithOwner --jq '.[].nameWithOwner' 2>/dev/null
+  # Note: gh search repos uses 'fullName' not 'nameWithOwner'
+  gh search repos "$query" --owner "$org" --limit "$limit" --json fullName --jq '.[].fullName' 2>/dev/null
 }
 
 # ============================================================================
