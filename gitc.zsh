@@ -87,6 +87,28 @@ _get_github_user() {
   gh api user --jq .login 2>/dev/null
 }
 
+# Generic function to refresh GitHub repo cache
+_refresh_github_cache() {
+  local owner="$1"
+  local cache_file="$2"
+  local limit="${3:-1000}"
+  local display_name="${4:-$owner}"
+  
+  if [[ -z "$owner" || -z "$cache_file" ]]; then
+    echo "Error: Owner and cache file must be specified"
+    return 1
+  fi
+  
+  echo "Refreshing ${display_name}'s repos cache..."
+  gh repo list "$owner" --limit "$limit" --json nameWithOwner --jq '.[].nameWithOwner' > "$cache_file"
+  if [[ $? -eq 0 ]]; then
+    echo "Cache refreshed!"
+  else
+    echo "Error: Failed to refresh cache"
+    return 1
+  fi
+}
+
 # ============================================================================
 # gitc command - tmux sessions with git clone
 # ============================================================================
@@ -164,9 +186,7 @@ gitc-refresh-cache() {
     return 1
   fi
   
-  echo "Refreshing $github_user's repos cache..."
-  gh repo list "$github_user" --limit 1000 --json nameWithOwner --jq '.[].nameWithOwner' > "${HOME}/.cache/gitc-${github_user}-repos"
-  echo "Cache refreshed!"
+  _refresh_github_cache "$github_user" "${HOME}/.cache/gitc-${github_user}-repos" 1000 "$github_user"
 }
 
 _gitc() {
