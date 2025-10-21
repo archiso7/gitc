@@ -21,6 +21,17 @@ GITC_CLONE_DIR="${HOME}/src"
 # Default git host for shortcuts (when just providing repo name or owner/repo)
 GITC_DEFAULT_HOST="github.com"
 
+# Autocomplete configuration
+# Maximum number of repos to load for full autocomplete
+# If a user/org has more repos, switch to incremental search
+GITC_AUTOCOMPLETE_MAX_REPOS="${GITC_AUTOCOMPLETE_MAX_REPOS:-500}"
+
+# Minimum characters to type before triggering incremental search
+GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS="${GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS:-2}"
+
+# Cache time for repo listings (in seconds)
+GITC_CACHE_TIME="${GITC_CACHE_TIME:-3600}"  # 1 hour default
+
 # ============================================================================
 # Shared utility functions (exported for use by other tools)
 # ============================================================================
@@ -130,6 +141,81 @@ _search_github_repos() {
   gh search repos "$query" --owner "$org" --limit "$limit" --json fullName --jq '.[].fullName' 2>/dev/null
 }
 
+# Shared autocomplete function for GitHub repos with smart search
+# Exported for use by other tools (like devt)
+# Args: owner, current_word, description, [strip_owner_prefix (default: true)]
+_gitc_autocomplete_github_repos() {
+  local owner="$1"
+  local current_word="$2"
+  local description="$3"
+  local strip_owner="${4:-true}"
+  
+  if [[ -z "$owner" ]]; then
+    return 1
+  fi
+  
+  local cache_file="${HOME}/.cache/gitc-${owner}-repos"
+  local count_cache_file="${HOME}/.cache/gitc-${owner}-count"
+  
+  # Get cached repo count to decide between full listing vs search
+  local repo_count=0
+  if [[ -f "$count_cache_file" ]] && [[ $(($(date +%s) - $(stat -f %m "$count_cache_file" 2>/dev/null || stat -c %Y "$count_cache_file" 2>/dev/null))) -lt $GITC_CACHE_TIME ]]; then
+    repo_count=$(cat "$count_cache_file" 2>/dev/null || echo "0")
+  else
+    # Use GitHub API to get repo count - much faster than fetching repos
+    # Try user endpoint first, then org endpoint
+    repo_count=$(gh api "users/$owner" --jq '.public_repos' 2>/dev/null || gh api "orgs/$owner" --jq '.public_repos' 2>/dev/null || echo "0")
+    if [[ "$repo_count" -gt 0 ]]; then
+      echo "$repo_count" > "$count_cache_file"
+    fi
+  fi
+  
+  # Decide whether to use full listing or incremental search
+  if [[ $repo_count -gt $GITC_AUTOCOMPLETE_MAX_REPOS ]]; then
+    # Use incremental search for large repos
+    if [[ ${#current_word} -ge $GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS ]]; then
+      local -a search_results
+      search_results=("${(@f)$(_search_github_repos "$owner" "$current_word" 50)}")
+      
+      if [[ ${#search_results[@]} -gt 0 ]]; then
+        if [[ "$strip_owner" == "true" ]]; then
+          # Strip owner prefix for cleaner completion
+          local -a clean_results
+          for repo in "${search_results[@]}"; do
+            clean_results+=("${repo#*/}:$repo")
+          done
+          _describe "Search results for $description ($repo_count+ repos, showing matches for '$current_word')" clean_results
+        else
+          _describe "Search results for $description ($repo_count+ repos, showing matches for '$current_word')" search_results
+        fi
+      else
+        _message "No matches found. Keep typing to search $description's $repo_count+ repos..."
+      fi
+    else
+      _message "Type at least $GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS characters to search $description's $repo_count+ repos"
+    fi
+  else
+    # Fetch full list for smaller repos
+    local -a user_repos
+    user_repos=("${(@f)$(_fetch_github_repos "$owner" "$cache_file" "$GITC_CACHE_TIME" 1000)}")
+    
+    if [[ ${#user_repos[@]} -gt 0 ]]; then
+      if [[ "$strip_owner" == "true" ]]; then
+        # Strip owner prefix for cleaner completion
+        local -a clean_repos
+        for repo in "${user_repos[@]}"; do
+          clean_repos+=("${repo#*/}:$repo")
+        done
+        _describe "$description repositories (${#user_repos[@]} repos)" clean_repos
+      else
+        _describe "$description repositories (${#user_repos[@]} repos)" user_repos
+      fi
+    else
+      _message "No repositories found for $description"
+    fi
+  fi
+}
+
 # ============================================================================
 # gitc command - tmux sessions with git clone
 # ============================================================================
@@ -212,41 +298,20 @@ gitc-refresh-cache() {
 
 _gitc() {
   local current_word="${words[CURRENT]}"
-  local -a repos
   
   # Check if user is typing "username/" pattern
   if [[ "$current_word" == */* ]]; then
     local typed_user="${current_word%%/*}"
-    local cache_file="${HOME}/.cache/gitc-${typed_user}-repos"
+    local typed_query="${current_word#*/}"
     
-    # Fetch repos for the specified user
-    local -a user_repos
-    user_repos=("${(@f)$(_fetch_github_repos "$typed_user" "$cache_file" 3600 1000)}")
-    
-    if [[ ${#user_repos[@]} -gt 0 && ${#user_repos[@]} -le 500 ]]; then
-      # Only show completions if user doesn't have too many repos
-      _describe "GitHub repositories for $typed_user" user_repos
-    else
-      _message "Type full repo name: $typed_user/repo-name"
-    fi
+    # Use shared autocomplete function with full repo names (don't strip owner)
+    _gitc_autocomplete_github_repos "$typed_user" "$typed_query" "$typed_user" false
   else
     # Default to current user's repos
     local github_user=$(_get_github_user)
     if [[ -n "$github_user" ]]; then
-      local cache_file="${HOME}/.cache/gitc-${github_user}-repos"
-      repos=("${(@f)$(_fetch_github_repos "$github_user" "$cache_file")}")
-      
-      # Strip username prefix for cleaner completion
-      local -a repo_names
-      for repo in "${repos[@]}"; do
-        repo_names+=("${repo#*/}:$repo")
-      done
-      
-      if [[ ${#repo_names[@]} -gt 0 ]]; then
-        _describe "Your GitHub repositories" repo_names
-      else
-        _message "No repositories found"
-      fi
+      # Use shared autocomplete function with stripped owner prefix for cleaner display
+      _gitc_autocomplete_github_repos "$github_user" "$current_word" "Your GitHub" true
     else
       _message "Install gh CLI and run: gh auth login"
     fi

@@ -66,7 +66,15 @@ gitc <TAB>
 
 # Tab completion for another user's repos
 gitc otheruser/<TAB>
+
+# Smart incremental search for large orgs (1000+ repos)
+gitc kubernetes/ku<TAB>  # Shows search results as you type
 ```
+
+**Smart Autocomplete**: The completion system automatically detects large organizations or users with many repositories (500+ by default) and switches to **incremental search mode**. This makes autocomplete fast even for orgs with 10,000+ repos!
+
+- **Small repos (<500)**: Shows full list of repos (cached for 1 hour)
+- **Large repos (500+)**: Uses GitHub's search API as you type (minimum 2 characters)
 
 **Tip**: For an even better completion experience with fuzzy search and preview, install [fzf-tab](https://github.com/Aloxaf/fzf-tab)!
 
@@ -105,6 +113,26 @@ Cache is automatically refreshed every hour.
 |----------|---------|-------------|
 | `GITC_CLONE_DIR` | `${HOME}/src` | Base directory for cloned repos |
 | `GITC_DEFAULT_HOST` | `github.com` | Default host for shortcuts |
+| `GITC_AUTOCOMPLETE_MAX_REPOS` | `500` | Threshold for switching to search mode |
+| `GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS` | `2` | Minimum characters to type before searching |
+| `GITC_CACHE_TIME` | `3600` | Cache lifetime in seconds (1 hour) |
+
+### Customizing Autocomplete Behavior
+
+```zsh
+# In your ~/.zshrc, set these BEFORE sourcing gitc.zsh
+
+# Use search mode for orgs with 200+ repos instead of 500
+export GITC_AUTOCOMPLETE_MAX_REPOS=200
+
+# Require 3 characters before triggering search
+export GITC_AUTOCOMPLETE_MIN_SEARCH_CHARS=3
+
+# Cache for 30 minutes instead of 1 hour
+export GITC_CACHE_TIME=1800
+
+source ~/.config/zsh/gitc/gitc.zsh
+```
 
 ## Requirements
 
