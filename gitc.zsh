@@ -60,11 +60,14 @@ _tmux_session_with_command() {
     # For cd, extract directory name
     local session_name="${1##*/}"
   fi
+
   
   # Create and attach to tmux session, running command inside
   tmux new-session -s "$session_name" -d
-  tmux send-keys -t "$session_name" "$base_command $action $args" C-m
-  tmux attach-session -t "$session_name"
+  tmux send-keys -t "$session_name" "$base_command $action $args; tmux wait-for -S done-$session_name" C-m
+  tmux wait-for "done-$session_name"
+  local dir=$(tmux display-message -p -t "$session_name" -F "#{pane_current_path}")
+  tmux attach-session -t "$session_name" -c "$dir"
 }
 
 # Fetch and cache GitHub repos for a given user/org
